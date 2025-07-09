@@ -7,6 +7,7 @@ export interface IMessageRepository {
   findById(id: number): Promise<Message | null>;
   delete(id: number): Promise<void>;
   markAsRead(recipientId: number, senderId: number): Promise<void>;
+  
 }
 
 export class PrismaMessageRepository implements IMessageRepository {

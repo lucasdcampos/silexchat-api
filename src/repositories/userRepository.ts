@@ -7,10 +7,12 @@ export interface IUserRepository {
   create(data: Omit<User, 'id' | 'createdAt'>): Promise<User>;
   findByEmail(email: string): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
+  findById(id: number): Promise<User | null>;
   findAll(): Promise<PublicUser[]>;
   findConversationPartners(userId: number): Promise<User[]>;
   hideConversation(userId: number, partnerId: number): Promise<void>;
   unhideConversation(userId: number, partnerId: number): Promise<void>
+  update(id: number, data: { username?: string; avatarUrl?: string }): Promise<User>;
 }
 
 export class PrismaUserRepository implements IUserRepository {
@@ -24,6 +26,17 @@ export class PrismaUserRepository implements IUserRepository {
 
   async findByUsername(username: string): Promise<User | null> {
     return prisma.user.findUnique({ where: { username } });
+  }
+
+  async findById(id: number): Promise<User | null> {
+    return prisma.user.findUnique({ where: { id } });
+  }
+
+  async update(id: number, data: { username?: string; avatarUrl?: string }): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data,
+    });
   }
 
   async findAll(): Promise<PublicUser[]> {

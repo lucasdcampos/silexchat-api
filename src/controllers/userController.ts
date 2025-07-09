@@ -127,4 +127,46 @@ export class UserController {
       return res.status(500).json({ message: 'Internal server error.' });
     }
   }
+
+  public updateProfile = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const userId = (req as any).user.id;
+      const { username, avatarUrl } = req.body;
+
+      if (!username && !avatarUrl) {
+        return res.status(400).json({ message: 'At least one field (username or avatarUrl) must be provided.' });
+      }
+
+      if (username) {
+        const existingUser = await this.userRepository.findByUsername(username);
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(409).json({ message: 'This username is already taken.' });
+        }
+      }
+
+      const updatedUser = await this.userRepository.update(userId, { username, avatarUrl });
+
+      const jwtSecret = process.env.JWT_SECRET || 'your-default-secret';
+      const tokenPayload = { 
+        id: updatedUser.id, 
+        username: updatedUser.username, 
+        avatarUrl: updatedUser.avatarUrl 
+      };
+      const newToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
+
+      return res.status(200).json({
+        message: 'Profile updated successfully.',
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          avatarUrl: updatedUser.avatarUrl,
+        },
+        token: newToken,
+      });
+
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  }
 }

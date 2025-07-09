@@ -19,6 +19,7 @@ export function createUserRoutes(userRepository: IUserRepository) {
   router.get('/users', asyncHandler(userController.getAllUsers.bind(userController)));
   router.get('/conversations', authMiddleware, asyncHandler(userController.getConversations.bind(userController)));
   router.delete('/conversations/:partnerId', authMiddleware, asyncHandler(userController.hideConversation.bind(userController)));
+  router.patch('/me', authMiddleware, asyncHandler(userController.updateProfile.bind(userController)));
   
   return router;
 }
