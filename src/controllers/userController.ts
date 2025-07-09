@@ -92,4 +92,15 @@ export class UserController {
     }));
     return res.json(userList);
   }
+
+  public getConversations = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const userId = (req as any).user.id;
+      const partners = await this.userRepository.findConversationPartners(userId);
+      return res.status(200).json(partners);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  }
 }

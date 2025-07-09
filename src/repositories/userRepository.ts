@@ -6,38 +6,7 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
   findAll(): Promise<User[]>;
-}
-
-export class InMemoryUserRepository implements IUserRepository {
-  private users: User[] = [];
-  private currentId = 1;
-
-  async create(data: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    const newUser: User = {
-      id: this.currentId++,
-      username: data.username,
-      email: data.email,
-      passwordHash: data.passwordHash,
-      publicKey: data.publicKey,
-      createdAt: new Date(),
-    };
-    this.users.push(newUser);
-    return newUser;
-  }
-
-  async findByEmail(email: string): Promise<User | null> {
-    const user = this.users.find(u => u.email === email);
-    return user || null;
-  }
-
-  async findByUsername(username: string): Promise<User | null> {
-    const user = this.users.find(u => u.username === username);
-    return user || null;
-  }
-
-  async findAll(): Promise<User[]> {
-    return this.users;
-  }
+  findConversationPartners(userId: number): Promise<User[]>;
 }
 
 export class SqliteUserRepository implements IUserRepository {
@@ -119,4 +88,29 @@ export class SqliteUserRepository implements IUserRepository {
       });
     });
   }
+
+  findConversationPartners(userId: number): Promise<User[]> {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+          u.id,
+          u.username,
+          MAX(m.createdAt) as lastMessageTimestamp
+      FROM
+          messages m
+      JOIN
+          users u ON u.id = CASE WHEN m.senderId = ? THEN m.recipientId ELSE m.senderId END
+      WHERE
+          m.senderId = ? OR m.recipientId = ?
+      GROUP BY
+          u.id, u.username
+      ORDER BY
+          lastMessageTimestamp DESC
+    `;
+    this.db.all(sql, [userId, userId, userId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows as User[]);
+    });
+  });
+}
 }

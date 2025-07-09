@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/userController';
-import { InMemoryUserRepository, IUserRepository, SqliteUserRepository } from '../repositories/userRepository';
+import { IUserRepository, SqliteUserRepository } from '../repositories/userRepository';
+import { authMiddleware } from '../middleware/authMiddleware';
 
 export function createUserRoutes(userRepository: IUserRepository) {
   const router = Router();
@@ -16,6 +17,6 @@ export function createUserRoutes(userRepository: IUserRepository) {
   router.post('/register', asyncHandler(userController.register.bind(userController)));
   router.post('/login', asyncHandler(userController.login.bind(userController)));
   router.get('/users', asyncHandler(userController.getAllUsers.bind(userController)));
-
+  router.get('/conversations', authMiddleware, asyncHandler(userController.getConversations.bind(userController)));
   return router;
 }
