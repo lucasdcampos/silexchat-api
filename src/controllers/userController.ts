@@ -8,7 +8,7 @@ export class UserController {
 
   public register = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const { username, email, password, publicKey } = req.body;
+      const { username, email, password, publicKey, avatarUrl} = req.body;
 
       if (!username || !email || !password || !publicKey) {
         return res.status(400).json({ message: 'All fields are required.' });
@@ -30,7 +30,8 @@ export class UserController {
         username,
         email,
         passwordHash,
-        publicKey
+        publicKey,
+        avatarUrl
       });
 
       console.log('New user registered:', { id: newUser.id, username: newUser.username, email: newUser.email });
@@ -70,7 +71,13 @@ export class UserController {
         throw new Error('JWT_SECRET must be defined in .env file');
       }
 
-      const token = jwt.sign({ id: user.id, username: user.username }, jwtSecret, { expiresIn: '1h' });
+      const tokenPayload = { 
+        id: user.id, 
+        username: user.username, 
+        avatarUrl: user.avatarUrl 
+      };
+
+      const token = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
       jwt.verify(token, jwtSecret);
       
       return res.status(200).json({ message: 'Login successful.', token });

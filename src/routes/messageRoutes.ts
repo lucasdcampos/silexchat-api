@@ -2,7 +2,6 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { MessageController } from '../controllers/messageController';
 import { IMessageRepository } from '../repositories/messageRepository';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { Server } from 'socket.io';
 
 export function createMessageRoutes(messageRepository: IMessageRepository) {
   const router = Router();
@@ -14,6 +13,9 @@ export function createMessageRoutes(messageRepository: IMessageRepository) {
   });
   router.delete('/:id', (req, res, next) => {
     messageController.deleteMessage(req, res).catch(next);
+  });
+  router.post('/conversation/:partnerId/read', (req, res, next) => {
+    messageController.markAsRead(req, res).catch(next);
   });
 
   return router;

@@ -5,4 +5,5 @@ export interface User {
   passwordHash: string;
   publicKey: string;
   createdAt: Date;
+  avatarUrl?: string | null;
 }

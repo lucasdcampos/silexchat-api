@@ -34,10 +34,15 @@ function setupConnectionEvents(io: Server, userSocketMap: Map<number, string>) {
     socket.on('privateMessage', async ({ recipientId, content, tempId }) => {
       const senderId = connectedUser.id;
       
+      if (!senderId || !recipientId) {
+        console.error("Error: senderId or recipientId is undefined.");
+        return;
+      }
+
       await userRepository.unhideConversation(recipientId, senderId);
       await userRepository.unhideConversation(senderId, recipientId);
 
-      const newMessage = await messageRepository.create({ senderId, recipientId, content });
+      const newMessage = await messageRepository.create(senderId, recipientId, content);
       
       const recipientSocketId = userSocketMap.get(recipientId);
       if (recipientSocketId) {

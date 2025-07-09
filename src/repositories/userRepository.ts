@@ -34,6 +34,7 @@ export class PrismaUserRepository implements IUserRepository {
         email: true,
         publicKey: true,
         createdAt: true,
+        avatarUrl: true,
       }
     });
   }
@@ -52,15 +53,17 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  async findConversationPartners(userId: number): Promise<User[]> {
-    const partners = await prisma.$queryRaw<User[]>`
+  async findConversationPartners(userId: number): Promise<any[]> { 
+    const partners = await prisma.$queryRaw<any[]>`
       SELECT
           u.id,
-          u.username
+          u.username,
+          u."avatarUrl",
+          CAST(COUNT(CASE WHEN m."recipientId" = ${userId} AND m."isRead" = false THEN 1 END) AS INTEGER) as "unreadCount"
       FROM
-          "Message" m
+          "User" u
       JOIN
-          "User" u ON u.id = CASE WHEN m."senderId" = ${userId} THEN m."recipientId" ELSE m."senderId" END
+          "Message" m ON u.id = CASE WHEN m."senderId" = ${userId} THEN m."recipientId" ELSE m."senderId" END
       LEFT JOIN
           "HiddenConversation" hc ON hc."hidingUserId" = ${userId} AND hc."partnerId" = u.id
       WHERE

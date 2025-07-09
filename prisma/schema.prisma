@@ -20,7 +20,8 @@ model User {
   passwordHash String
   publicKey    String
   createdAt    DateTime  @default(now())
-
+  avatarUrl    String?
+  
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
 
@@ -45,6 +46,6 @@ model Message {
   recipientId Int
   sender      User     @relation("SentMessages", fields: [senderId], references: [id])
   recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
-
+  isRead      Boolean  @default(false)
   @@index([senderId, recipientId])
 }

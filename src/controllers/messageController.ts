@@ -53,4 +53,17 @@ export class MessageController {
       return res.status(500).json({ message: 'Internal server error.' });
     }
   }
+
+  public markAsRead = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const userId = (req as any).user.id;
+      const partnerId = parseInt(req.params.partnerId, 10);
+
+      await this.messageRepository.markAsRead(userId, partnerId);
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  }
 }
