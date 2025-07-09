@@ -23,6 +23,17 @@ model User {
 
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+
+  hiddenConversations HiddenConversation[] @relation("HidingUser")
+}
+
+model HiddenConversation {
+  hidingUserId Int
+  partnerId    Int
+
+  hidingUser User @relation("HidingUser", fields: [hidingUserId], references: [id], onDelete: Cascade)
+
+  @@id([hidingUserId, partnerId])
 }
 
 model Message {

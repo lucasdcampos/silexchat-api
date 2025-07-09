@@ -18,5 +18,7 @@ export function createUserRoutes(userRepository: IUserRepository) {
   router.post('/login', asyncHandler(userController.login.bind(userController)));
   router.get('/users', asyncHandler(userController.getAllUsers.bind(userController)));
   router.get('/conversations', authMiddleware, asyncHandler(userController.getConversations.bind(userController)));
+  router.delete('/conversations/:partnerId', authMiddleware, asyncHandler(userController.hideConversation.bind(userController)));
+  
   return router;
 }

@@ -103,4 +103,21 @@ export class UserController {
       return res.status(500).json({ message: 'Internal server error.' });
     }
   }
+
+  public hideConversation = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const userId = (req as any).user.id;
+      const partnerId = parseInt(req.params.partnerId, 10);
+
+      if (isNaN(partnerId)) {
+        return res.status(400).json({ message: 'Invalid partner ID.' });
+      }
+
+      await this.userRepository.hideConversation(userId, partnerId);
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error hiding conversation:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  }
 }
