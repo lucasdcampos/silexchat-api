@@ -1,116 +1,60 @@
-import sqlite3 from 'sqlite3';
 import { User } from '../models/user';
+import { prisma } from '../database';
+
+export type PublicUser = Omit<User, 'passwordHash'>;
 
 export interface IUserRepository {
   create(data: Omit<User, 'id' | 'createdAt'>): Promise<User>;
   findByEmail(email: string): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
-  findAll(): Promise<User[]>;
+  findAll(): Promise<PublicUser[]>;
   findConversationPartners(userId: number): Promise<User[]>;
 }
 
-export class SqliteUserRepository implements IUserRepository {
-  constructor(private db: sqlite3.Database) {}
+export class PrismaUserRepository implements IUserRepository {
+  async create(data: Omit<User, 'id' | 'createdAt'>): Promise<User> {
+    return prisma.user.create({ data });
+  }
 
-  public initDb(): void {
-    const sql = `
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        passwordHash TEXT NOT NULL,
-        publicKey TEXT NOT NULL,
-        createdAt TEXT NOT NULL
-      )
-    `;
-    this.db.run(sql, (err) => {
-      if (err) {
-        console.error('Error creating users table', err);
+  async findByEmail(email: string): Promise<User | null> {
+    return prisma.user.findUnique({ where: { email } });
+  }
+
+  async findByUsername(username: string): Promise<User | null> {
+    return prisma.user.findUnique({ where: { username } });
+  }
+
+  async findAll(): Promise<PublicUser[]> {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        publicKey: true,
+        createdAt: true,
       }
     });
   }
 
-  create(data: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    return new Promise((resolve, reject) => {
-      const sql = `INSERT INTO users (username, email, passwordHash, publicKey, createdAt) VALUES (?, ?, ?, ?, ?)`;
-      const createdAt = new Date().toISOString();
-      
-      this.db.run(sql, [data.username, data.email, data.passwordHash, data.publicKey, createdAt], function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          const newUser: User = {
-            id: this.lastID,
-            createdAt: new Date(createdAt),
-            ...data,
-          };
-          resolve(newUser);
-        }
-      });
-    });
-  }
-
-  findByEmail(email: string): Promise<User | null> {
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT * FROM users WHERE email = ?`;
-      this.db.get(sql, [email], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row ? (row as User) : null);
-        }
-      });
-    });
-  }
-
-  findByUsername(username: string): Promise<User | null> {
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT * FROM users WHERE username = ?`;
-      this.db.get(sql, [username], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row ? (row as User) : null);
-        }
-      });
-    });
-  }
-
-  findAll(): Promise<User[]> {
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT id, username, email, publicKey, createdAt FROM users`;
-      this.db.all(sql, [], (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows as User[]);
-        }
-      });
-    });
-  }
-
-  findConversationPartners(userId: number): Promise<User[]> {
-  return new Promise((resolve, reject) => {
-    const sql = `
+  async findConversationPartners(userId: number): Promise<User[]> {
+    const partners = await prisma.$queryRaw<User[]>`
       SELECT
           u.id,
           u.username,
-          MAX(m.createdAt) as lastMessageTimestamp
+          u.email,
+          u."publicKey",
+          u."createdAt"
       FROM
-          messages m
+          "Message" m
       JOIN
-          users u ON u.id = CASE WHEN m.senderId = ? THEN m.recipientId ELSE m.senderId END
+          "User" u ON u.id = CASE WHEN m."senderId" = ${userId} THEN m."recipientId" ELSE m."senderId" END
       WHERE
-          m.senderId = ? OR m.recipientId = ?
+          m."senderId" = ${userId} OR m."recipientId" = ${userId}
       GROUP BY
-          u.id, u.username
+          u.id
       ORDER BY
-          lastMessageTimestamp DESC
+          MAX(m."createdAt") DESC
     `;
-    this.db.all(sql, [userId, userId, userId], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows as User[]);
-    });
-  });
-}
+    return partners;
+  }
 }

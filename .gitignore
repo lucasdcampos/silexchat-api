@@ -2,3 +2,4 @@
 /dist
 *.db
 *.env
+/src/generated/prisma

@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { MessageController } from '../controllers/messageController';
-import { IMessageRepository, InMemoryMessageRepository } from '../repositories/messageRepository';
+import { IMessageRepository } from '../repositories/messageRepository';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 export function createMessageRoutes(messageRepository: IMessageRepository) {

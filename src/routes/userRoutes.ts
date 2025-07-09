@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/userController';
-import { IUserRepository, SqliteUserRepository } from '../repositories/userRepository';
+import { IUserRepository } from '../repositories/userRepository';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 export function createUserRoutes(userRepository: IUserRepository) {
