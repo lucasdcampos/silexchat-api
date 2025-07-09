@@ -8,7 +8,7 @@ interface AuthenticatedUser {
   username: string;
 }
 
-const userSocketMap = new Map<number, string>();
+export const userSocketMap = new Map<number, string>();
 
 function setupAuthMiddleware(io: Server) {
   io.use((socket: Socket, next) => {
@@ -26,16 +26,17 @@ function setupAuthMiddleware(io: Server) {
   });
 }
 
-function setupConnectionEvents(io: Server) {
+function setupConnectionEvents(io: Server, userSocketMap: Map<number, string>) {
   io.on('connection', (socket: Socket) => {
     const connectedUser = (socket as any).user as AuthenticatedUser;
     userSocketMap.set(connectedUser.id, socket.id);
 
-    socket.on('privateMessage', async ({ recipientId, content }) => {
+    socket.on('privateMessage', async ({ recipientId, content, tempId }) => {
       const senderId = connectedUser.id;
       
-      await userRepository.unhideConversation(senderId, recipientId);
       await userRepository.unhideConversation(recipientId, senderId);
+      await userRepository.unhideConversation(senderId, recipientId);
+
       const newMessage = await messageRepository.create({ senderId, recipientId, content });
       
       const recipientSocketId = userSocketMap.get(recipientId);
@@ -45,6 +46,11 @@ function setupConnectionEvents(io: Server) {
           sender: { id: senderId, username: connectedUser.username },
         });
       }
+
+      socket.emit('messageConfirmed', {
+        tempId: tempId,
+        message: newMessage,
+      });
     });
 
     socket.on('disconnect', () => {
@@ -53,7 +59,7 @@ function setupConnectionEvents(io: Server) {
   });
 }
 
-export function setupSocketIO(io: Server) {
+export function setupSocketIO(io: Server, userSocketMap: Map<number, string>) {
   setupAuthMiddleware(io);
-  setupConnectionEvents(io);
+  setupConnectionEvents(io, userSocketMap);
 }
