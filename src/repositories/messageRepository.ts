@@ -33,7 +33,18 @@ export class PrismaMessageRepository implements IMessageRepository {
           { senderId: userId2, recipientId: userId1 },
         ],
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
   }
 
