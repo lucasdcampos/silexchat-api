@@ -51,6 +51,16 @@ function setupConnectionEvents(io: Server) {
     socket.on('chatMessage', async ({ chatId, content, tempId }) => {
       try {
         const senderId = connectedUser.id;
+
+        const chat = await chatRepository.findById(chatId);
+        if (chat) {
+            for (const participant of chat.participants) {
+                if (participant.userId !== senderId) {
+                    await chatRepository.unhideChat(participant.userId, chatId);
+                }
+            }
+        }
+        
         const newMessage = await messageRepository.create(chatId, senderId, content);
 
         socket.to(`chat:${chatId}`).emit('chatMessage', newMessage);

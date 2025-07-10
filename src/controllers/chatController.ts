@@ -1,17 +1,39 @@
 import { Request, Response } from 'express';
-import { ChatRepository } from "../repositories/chatRepository";
-import { UserRepository } from "../repositories/userRepository";
+import { IChatRepository } from "../repositories/chatRepository";
+import { IUserRepository } from "../repositories/userRepository";
 
 export class ChatController {
   constructor(
-    private chatRepository: ChatRepository,
-    private userRepository: UserRepository
+    private chatRepository: IChatRepository,
+    private userRepository: IUserRepository
   ) {}
 
   public getChats = async (req: Request, res: Response): Promise<Response> => {
     const userId = (req as any).user.id;
     const chats = await this.chatRepository.findChatsByUserId(userId);
     return res.status(200).json(chats);
+  }
+
+  public getChatById = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const chatId = parseInt(req.params.chatId, 10);
+      const userId = (req as any).user.id;
+      
+      const isParticipant = await this.chatRepository.isUserParticipant(userId, chatId);
+      if (!isParticipant) {
+        return res.status(403).json({ message: 'Access denied.' });
+      }
+
+      const chat = await this.chatRepository.findById(chatId);
+      if (!chat) {
+        return res.status(404).json({ message: 'Chat not found.' });
+      }
+      
+      return res.status(200).json(chat);
+    } catch (error) {
+      console.error('Error fetching chat by ID:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
   }
 
   public createGroup = async (req: Request, res: Response): Promise<Response> => {

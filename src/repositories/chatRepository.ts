@@ -1,4 +1,4 @@
-import { Chat } from '@prisma/client';
+import { Chat, Prisma } from '@prisma/client';
 import { prisma } from '../database';
 import { nanoid } from 'nanoid';
 
@@ -9,8 +9,25 @@ export interface IChatRepository {
   joinWithInviteCode(userId: number, inviteCode: string): Promise<Chat | null>;
   leave(userId: number, chatId: number): Promise<void>;
   hideChat(userId: number, chatId: number): Promise<void>;
+  unhideChat(userId: number, chatId: number): Promise<void>;
   isUserParticipant(userId: number, chatId: number): Promise<boolean>;
+  findById(id: number): Promise<Chat | null>;
 }
+
+const includeChatWithParticipants = {
+  participants: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          status: true,
+        },
+      },
+    },
+  },
+} as const;
 
 export class ChatRepository implements IChatRepository {
   async findOrCreateDM(userId1: number, userId2: number): Promise<Chat> {
@@ -21,6 +38,15 @@ export class ChatRepository implements IChatRepository {
           { participants: { some: { userId: userId1 } } },
           { participants: { some: { userId: userId2 } } },
         ],
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: { id: true, username: true, avatarUrl: true, status: true },
+            },
+          },
+        },
       },
     });
 
@@ -36,6 +62,22 @@ export class ChatRepository implements IChatRepository {
           create: [{ userId: userId1 }, { userId: userId2 }],
         },
       },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: { id: true, username: true, avatarUrl: true, status: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findById(id: number): Promise<Prisma.ChatGetPayload<{ include: typeof includeChatWithParticipants }> | null> {
+    return prisma.chat.findUnique({
+      where: { id },
+      include: includeChatWithParticipants,
     });
   }
 
@@ -49,6 +91,15 @@ export class ChatRepository implements IChatRepository {
         ownerId,
         participants: {
           create: { userId: ownerId },
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: { id: true, username: true, avatarUrl: true, status: true },
+            },
+          },
         },
       },
     });
