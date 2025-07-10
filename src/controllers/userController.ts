@@ -82,14 +82,7 @@ export class UserController {
 
   public getAllUsers = async (req: Request, res: Response): Promise<Response> => {
     const users = await this.userRepository.findAll();
-    const userList = users.map(u => ({ 
-      id: u.id, 
-      username: u.username, 
-      email: u.email, 
-      publicKey: u.publicKey, 
-      createdAt: u.createdAt 
-    }));
-    return res.json(userList);
+    return res.json(users);
   }
 
   public getUserById = async (req: Request, res: Response): Promise<Response> => {
