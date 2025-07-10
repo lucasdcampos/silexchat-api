@@ -6,4 +6,6 @@ export interface User {
   publicKey: string;
   createdAt: Date;
   avatarUrl?: string | null;
+  about?: string | null;
+  status?: string
 }

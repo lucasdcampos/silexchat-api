@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { IUserRepository } from '../repositories/userRepository';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { Server } from 'socket.io';
 
 export class UserController {
   constructor(private userRepository: IUserRepository) {}
@@ -50,38 +51,29 @@ export class UserController {
   public login = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { email, password } = req.body;
-
       if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required.' });
       }
-
       const user = await this.userRepository.findByEmail(email);
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials.' });
       }
-
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         return res.status(401).json({ message: 'Invalid credentials.' });
       }
-
-      const jwtSecret = process.env.JWT_SECRET;
-
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET must be defined in .env file');
-      }
-
+      const jwtSecret = process.env.JWT_SECRET || 'your-default-secret'; 
+      
       const tokenPayload = { 
         id: user.id, 
         username: user.username, 
-        avatarUrl: user.avatarUrl 
+        avatarUrl: user.avatarUrl,
+        about: user.about,
+        status: user.status,
       };
-
       const token = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
-      jwt.verify(token, jwtSecret);
-      
-      return res.status(200).json({ message: 'Login successful.', token });
 
+      return res.status(200).json({ message: 'Login successful.', token });
     } catch (error) {
       console.error('Error during login:', error);
       return res.status(500).json({ message: 'Internal server error.' });
@@ -98,6 +90,23 @@ export class UserController {
       createdAt: u.createdAt 
     }));
     return res.json(userList);
+  }
+
+  public getUserById = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID.' });
+      }
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+      return res.status(200).json(user);
+    } catch (error) {
+      console.error('Error fetching user by ID:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
   }
 
   public getConversations = async (req: Request, res: Response): Promise<Response> => {
@@ -130,11 +139,12 @@ export class UserController {
 
   public updateProfile = async (req: Request, res: Response): Promise<Response> => {
     try {
+      const io = req.app.get('io') as Server;
       const userId = (req as any).user.id;
-      const { username, avatarUrl } = req.body;
+      const { username, avatarUrl, about, status } = req.body;
 
-      if (!username && !avatarUrl) {
-        return res.status(400).json({ message: 'At least one field (username or avatarUrl) must be provided.' });
+      if (!username && !avatarUrl && !about && !status) {
+        return res.status(400).json({ message: 'At least one field must be provided.' });
       }
 
       if (username) {
@@ -144,23 +154,25 @@ export class UserController {
         }
       }
 
-      const updatedUser = await this.userRepository.update(userId, { username, avatarUrl });
+      const updatedUser = await this.userRepository.update(userId, { username, avatarUrl, about, status });
+
+      if (status) {
+        io.emit('userStatusChange', { userId, status });
+      }
 
       const jwtSecret = process.env.JWT_SECRET || 'your-default-secret';
       const tokenPayload = { 
         id: updatedUser.id, 
         username: updatedUser.username, 
-        avatarUrl: updatedUser.avatarUrl 
+        avatarUrl: updatedUser.avatarUrl,
+        about: updatedUser.about,
+        status: updatedUser.status,
       };
       const newToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
 
       return res.status(200).json({
         message: 'Profile updated successfully.',
-        user: {
-          id: updatedUser.id,
-          username: updatedUser.username,
-          avatarUrl: updatedUser.avatarUrl,
-        },
+        user: tokenPayload,
         token: newToken,
       });
 

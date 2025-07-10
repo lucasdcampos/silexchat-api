@@ -14,6 +14,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Status {
+  ONLINE
+  AFK
+  OFFLINE
+}
+
 model User {
   id           Int    @id @default(autoincrement())
   username     String    @unique
@@ -22,7 +28,8 @@ model User {
   publicKey    String
   createdAt    DateTime  @default(now())
   avatarUrl    String?
-  
+  about        String?
+  status       Status    @default(OFFLINE)
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
 

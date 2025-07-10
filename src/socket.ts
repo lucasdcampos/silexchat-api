@@ -27,10 +27,17 @@ function setupAuthMiddleware(io: Server) {
 }
 
 function setupConnectionEvents(io: Server, userSocketMap: Map<number, string>) {
-  io.on('connection', (socket: Socket) => {
+  io.on('connection', async (socket: Socket) => {
     const connectedUser = (socket as any).user as AuthenticatedUser;
     userSocketMap.set(connectedUser.id, socket.id);
-
+    try {
+      const user = await userRepository.updateStatus(connectedUser.id, 'ONLINE');
+      io.emit('userStatusChange', { userId: user.id, status: user.status });
+      console.log(`Client connected and set to ONLINE: ${connectedUser.username}`);
+    } catch(e) {
+      console.error("Failed to update user status on connect", e);
+    }
+    
     socket.on('privateMessage', async ({ recipientId, content, tempId }) => {
       const senderId = connectedUser.id;
       
@@ -58,8 +65,15 @@ function setupConnectionEvents(io: Server, userSocketMap: Map<number, string>) {
       });
     });
 
-    socket.on('disconnect', () => {
-      userSocketMap.delete(connectedUser.id);
+    socket.on('disconnect', async () => {
+    userSocketMap.delete(connectedUser.id);
+      try {
+        const user = await userRepository.updateStatus(connectedUser.id, 'OFFLINE');
+        io.emit('userStatusChange', { userId: user.id, status: user.status });
+        console.log(`Client disconnected and set to OFFLINE: ${connectedUser.username}`);
+      } catch(e) {
+        console.error("Failed to update user status on disconnect", e);
+      }
     });
   });
 }

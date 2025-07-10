@@ -1,5 +1,6 @@
 import { User } from '../models/user';
 import { prisma } from '../database';
+import { Status } from '@prisma/client';
 
 export type PublicUser = Omit<User, 'passwordHash'>;
 
@@ -12,12 +13,18 @@ export interface IUserRepository {
   findConversationPartners(userId: number): Promise<User[]>;
   hideConversation(userId: number, partnerId: number): Promise<void>;
   unhideConversation(userId: number, partnerId: number): Promise<void>
-  update(id: number, data: { username?: string; avatarUrl?: string }): Promise<User>;
+  update(id: number, data: { username?: string; avatarUrl?: string; about?: string; status?: string }): Promise<User>;
+  updateStatus(id: number, status: 'ONLINE' | 'AFK' | 'OFFLINE'): Promise<User>;
 }
 
 export class PrismaUserRepository implements IUserRepository {
   async create(data: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    return prisma.user.create({ data });
+    const prismaData = {
+      ...data,
+      status: data.status as Status,
+    };
+
+    return prisma.user.create({ data: prismaData });
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -32,10 +39,17 @@ export class PrismaUserRepository implements IUserRepository {
     return prisma.user.findUnique({ where: { id } });
   }
 
-  async update(id: number, data: { username?: string; avatarUrl?: string }): Promise<User> {
+  async update(id: number, data: { username?: string; avatarUrl?: string; about?: string; status?: string }): Promise<User> {
     return prisma.user.update({
       where: { id },
-      data,
+      data: data as any,
+    });
+  }
+
+  async updateStatus(id: number, status: 'ONLINE' | 'AFK' | 'OFFLINE'): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data: { status },
     });
   }
 
