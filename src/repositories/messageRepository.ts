@@ -1,50 +1,38 @@
 import { prisma } from '../database';
-import { Message } from '../models/message';
+import { Message } from '@prisma/client';
 
 export interface IMessageRepository {
-  create(senderId: number, recipientId: number, content: string): Promise<Message>;
-  findConversation(userId1: number, userId2: number): Promise<Message[]>;
+  create(chatId: number, senderId: number, content: string): Promise<Message>;
   findById(id: number): Promise<Message | null>;
+  findByChatId(chatId: number): Promise<any[]>
   delete(id: number): Promise<void>;
   markAsRead(recipientId: number, senderId: number): Promise<void>;
-  
 }
 
-export class PrismaMessageRepository implements IMessageRepository {
-  async create(senderId: number, recipientId: number, content: string): Promise<Message> {
-    return prisma.message.create({
-      data: {
-        content: content,
-        sender: {
-          connect: { id: senderId }
+export class MessageRepository implements IMessageRepository {
+  async create(chatId: number, senderId: number, content: string): Promise<any> {
+    return prisma.$transaction(async (tx) => {
+      const newMessage = await tx.message.create({
+        data: { chatId, senderId, content },
+        include: {
+          sender: { select: { id: true, username: true, avatarUrl: true } },
         },
-        recipient: {
-          connect: { id: recipientId }
-        }
-      }
+      });
+      await tx.chat.update({
+        where: { id: chatId },
+        data: { updatedAt: new Date() },
+      });
+      return newMessage;
     });
   }
 
-  async findConversation(userId1: number, userId2: number): Promise<Message[]> {
+  async findByChatId(chatId: number): Promise<any[]> {
     return prisma.message.findMany({
-      where: {
-        OR: [
-          { senderId: userId1, recipientId: userId2 },
-          { senderId: userId2, recipientId: userId1 },
-        ],
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
+      where: { chatId },
       include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            avatarUrl: true,
-          },
-        },
+        sender: { select: { id: true, username: true, avatarUrl: true } },
       },
+      orderBy: { createdAt: 'asc' },
     });
   }
 
@@ -56,16 +44,21 @@ export class PrismaMessageRepository implements IMessageRepository {
     await prisma.message.delete({ where: { id } });
   }
 
-  async markAsRead(recipientId: number, senderId: number): Promise<void> {
-    await prisma.message.updateMany({
+  async markAsRead(chatId: number, userId: number): Promise<void> {
+    const messagesToMark = await prisma.message.findMany({
       where: {
-        recipientId: recipientId,
-        senderId: senderId,
-        isRead: false,
+        chatId: chatId,
+        senderId: { not: userId },
+        readBy: { none: { userId: userId } },
       },
-      data: {
-        isRead: true,
-      },
+      select: { id: true },
+    });
+
+    if (messagesToMark.length === 0) return;
+
+    await prisma.readReceipt.createMany({
+      data: messagesToMark.map(msg => ({ messageId: msg.id, userId: userId })),
+      skipDuplicates: true,
     });
   }
 }

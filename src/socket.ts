@@ -1,17 +1,17 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { config } from './config';
-import { messageRepository, userRepository } from './database';
+import { userRepository, chatRepository, messageRepository } from './database';
 
 interface AuthenticatedUser {
   id: number;
   username: string;
 }
 
-export const userSocketMap = new Map<number, string>();
+const userSocketMap = new Map<number, string>();
 
 function setupAuthMiddleware(io: Server) {
-  io.use((socket: Socket, next) => {
+  io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error('Authentication error: Token not provided.'));
@@ -26,59 +26,55 @@ function setupAuthMiddleware(io: Server) {
   });
 }
 
-function setupConnectionEvents(io: Server, userSocketMap: Map<number, string>) {
+function setupConnectionEvents(io: Server) {
   io.on('connection', async (socket: Socket) => {
     const connectedUser = (socket as any).user as AuthenticatedUser;
+    if (!connectedUser) return;
+
+    console.log(`Client connected: ${connectedUser.username} (${socket.id})`);
     userSocketMap.set(connectedUser.id, socket.id);
+
     try {
       const user = await userRepository.updateStatus(connectedUser.id, 'ONLINE');
       io.emit('userStatusChange', { userId: user.id, status: user.status });
-      console.log(`Client connected and set to ONLINE: ${connectedUser.username}`);
+
+      const userChats = await chatRepository.findChatsByUserId(connectedUser.id);
+      userChats.forEach(chat => {
+        socket.join(`chat:${chat.id}`);
+        console.log(`${connectedUser.username} joined room chat:${chat.id}`);
+      });
+
     } catch(e) {
-      console.error("Failed to update user status on connect", e);
+      console.error("Error during socket connection setup:", e);
     }
     
-    socket.on('privateMessage', async ({ recipientId, content, tempId }) => {
-      const senderId = connectedUser.id;
-      
-      if (!senderId || !recipientId) {
-        console.error("Error: senderId or recipientId is undefined.");
-        return;
+    socket.on('chatMessage', async ({ chatId, content, tempId }) => {
+      try {
+        const senderId = connectedUser.id;
+        const newMessage = await messageRepository.create(chatId, senderId, content);
+
+        socket.to(`chat:${chatId}`).emit('chatMessage', newMessage);
+
+        socket.emit('messageConfirmed', { tempId, message: newMessage });
+      } catch (error) {
+        console.error(`Error handling chat message for chat ${chatId}:`, error);
       }
-
-      await userRepository.unhideConversation(recipientId, senderId);
-      await userRepository.unhideConversation(senderId, recipientId);
-
-      const newMessage = await messageRepository.create(senderId, recipientId, content);
-      
-      const recipientSocketId = userSocketMap.get(recipientId);
-      if (recipientSocketId) {
-        io.to(recipientSocketId).emit('privateMessage', {
-          ...newMessage,
-          sender: { id: senderId, username: connectedUser.username },
-        });
-      }
-
-      socket.emit('messageConfirmed', {
-        tempId: tempId,
-        message: newMessage,
-      });
     });
 
     socket.on('disconnect', async () => {
-    userSocketMap.delete(connectedUser.id);
+      console.log(`Client disconnected: ${connectedUser.username}`);
+      userSocketMap.delete(connectedUser.id);
       try {
         const user = await userRepository.updateStatus(connectedUser.id, 'OFFLINE');
         io.emit('userStatusChange', { userId: user.id, status: user.status });
-        console.log(`Client disconnected and set to OFFLINE: ${connectedUser.username}`);
       } catch(e) {
-        console.error("Failed to update user status on disconnect", e);
+        console.error("Failed to update user status on disconnect:", e);
       }
     });
   });
 }
 
-export function setupSocketIO(io: Server, userSocketMap: Map<number, string>) {
+export function setupSocketIO(io: Server) {
   setupAuthMiddleware(io);
-  setupConnectionEvents(io, userSocketMap);
+  setupConnectionEvents(io);
 }

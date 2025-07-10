@@ -1,11 +1,15 @@
+import { Status } from "@prisma/client";
+
 export interface User {
   id: number;
   username: string;
   email: string;
   passwordHash: string;
   publicKey: string;
-  createdAt: Date;
   avatarUrl?: string | null;
   about?: string | null;
-  status?: string
+  status: Status;
+  createdAt: Date;
 }
+
+export type PublicUser = Omit<User, 'passwordHash' | 'email' | 'publicKey'>;

@@ -21,6 +21,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "libsodium-wrappers": "^0.7.15",
+    "nanoid": "^5.1.5",
     "pg": "^8.16.3",
     "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7"

@@ -1,22 +1,17 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { MessageController } from '../controllers/messageController';
-import { IMessageRepository } from '../repositories/messageRepository';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { asyncHandler } from '../utils';
+import { chatRepository, messageRepository } from '../database';
 
-export function createMessageRoutes(messageRepository: IMessageRepository) {
-  const router = Router();
-  const messageController = new MessageController(messageRepository);
+const router = Router();
 
-  router.use(authMiddleware);
-  router.get('/conversation/:otherUserId', (req, res, next) => {
-    messageController.getConversation(req, res).catch(next);
-  });
-  router.delete('/:id', (req, res, next) => {
-    messageController.deleteMessage(req, res).catch(next);
-  });
-  router.post('/conversation/:partnerId/read', (req, res, next) => {
-    messageController.markAsRead(req, res).catch(next);
-  });
+const messageController = new MessageController(messageRepository, chatRepository);
 
-  return router;
-}
+router.use(authMiddleware);
+
+router.get('/:chatId', asyncHandler(messageController.getMessagesByChatId.bind(messageController)));
+router.post('/:chatId/read', asyncHandler(messageController.markChatAsRead.bind(messageController)));
+router.delete('/:messageId', asyncHandler(messageController.deleteMessage.bind(messageController)));
+
+export default router;

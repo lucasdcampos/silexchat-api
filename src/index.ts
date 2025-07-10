@@ -2,7 +2,7 @@ import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { app } from './app';
 import { config } from './config';
-import { setupSocketIO, userSocketMap } from './socket';
+import { setupSocketIO } from './socket';
 
 const server = http.createServer(app);
 
@@ -11,9 +11,8 @@ const io = new SocketIOServer(server, {
 });
 
 app.set('io', io);
-app.set('userSocketMap', userSocketMap);
 
-setupSocketIO(io, userSocketMap);
+setupSocketIO(io);
 
 server.listen(config.port, () => {
   console.log(`Silex server running on port ${config.port}`);

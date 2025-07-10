@@ -20,40 +20,79 @@ enum Status {
   OFFLINE
 }
 
+enum ChatType {
+  DM
+  GROUP
+}
+
 model User {
-  id           Int    @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   username     String    @unique
   email        String    @unique
   passwordHash String
   publicKey    String
-  createdAt    DateTime  @default(now())
   avatarUrl    String?
   about        String?
   status       Status    @default(OFFLINE)
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  createdAt    DateTime  @default(now())
 
-  hiddenConversations HiddenConversation[] @relation("HidingUser")
+  ownedChats   Chat[]            @relation("OwnedChats")
+  participants ChatParticipant[]
+  messages     Message[]
+
+  ReadReceipt ReadReceipt[]
 }
 
-model HiddenConversation {
-  hidingUserId Int
-  partnerId    Int
+model Chat {
+  id         Int      @id @default(autoincrement())
+  type       ChatType
+  name       String?
+  avatarUrl  String?
+  inviteCode String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  hidingUser User @relation("HidingUser", fields: [hidingUserId], references: [id], onDelete: Cascade)
+  ownerId    Int?
+  owner      User?             @relation("OwnedChats", fields: [ownerId], references: [id], onDelete: SetNull)
 
-  @@id([hidingUserId, partnerId])
+  participants ChatParticipant[]
+  messages     Message[]
+}
+
+model ChatParticipant {
+  userId   Int
+  chatId   Int
+  isHidden Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@id([userId, chatId])
 }
 
 model Message {
-  id          Int      @id @default(autoincrement())
-  content     String
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
 
-  senderId    Int
-  recipientId Int
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
-  recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
-  isRead      Boolean  @default(false)
-  @@index([senderId, recipientId])
+  senderId  Int
+  chatId    Int
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  readBy    ReadReceipt[]
+
+  @@index([chatId])
+}
+
+model ReadReceipt {
+  userId    Int
+  messageId Int
+  readAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([userId, messageId])
 }
