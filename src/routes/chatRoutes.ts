@@ -16,5 +16,6 @@ router.post('/groups', asyncHandler(chatController.createGroup.bind(chatControll
 router.post('/join', asyncHandler(chatController.joinGroup.bind(chatController)));
 router.delete('/:chatId/leave', asyncHandler(chatController.leaveGroup.bind(chatController)));
 router.delete('/:chatId', asyncHandler(chatController.hideChat.bind(chatController)));
+router.patch('/groups/:chatId', asyncHandler(chatController.updateGroup.bind(chatController)));
 
 export default router;

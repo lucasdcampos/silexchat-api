@@ -12,6 +12,7 @@ export interface IChatRepository {
   unhideChat(userId: number, chatId: number): Promise<void>;
   isUserParticipant(userId: number, chatId: number): Promise<boolean>;
   findById(id: number): Promise<Chat | null>;
+  updateGroup(chatId: number, ownerId: number, data: { name?: string; avatarUrl?: string }): Promise<Chat>;
 }
 
 const includeChatWithParticipants = {
@@ -62,6 +63,31 @@ export class ChatRepository implements IChatRepository {
           create: [{ userId: userId1 }, { userId: userId2 }],
         },
       },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: { id: true, username: true, avatarUrl: true, status: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async updateGroup(chatId: number, ownerId: number, data: { name?: string; avatarUrl?: string }): Promise<Chat> {
+    const group = await prisma.chat.findUnique({ where: { id: chatId } });
+
+    if (!group || group.type !== 'GROUP') {
+      throw new Error('Group not found.');
+    }
+    if (group.ownerId !== ownerId) {
+      throw new Error('Only the owner can edit the group.');
+    }
+
+    return prisma.chat.update({
+      where: { id: chatId },
+      data,
       include: {
         participants: {
           include: {

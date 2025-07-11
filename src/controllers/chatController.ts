@@ -81,4 +81,27 @@ export class ChatController {
     await this.chatRepository.hideChat(userId, chatId);
     return res.status(204).send();
   }
+
+  public updateGroup = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const chatId = parseInt(req.params.chatId, 10);
+      const ownerId = (req as any).user.id;
+      const { name, avatarUrl } = req.body;
+
+      if (!name && avatarUrl === undefined) {
+        return res.status(400).json({ message: 'At least name or avatarUrl must be provided.' });
+      }
+
+      const updatedGroup = await this.chatRepository.updateGroup(chatId, ownerId, { name, avatarUrl });
+      
+      return res.status(200).json(updatedGroup);
+
+    } catch (error: any) {
+      if (error.message.includes('Only the owner')) {
+        return res.status(403).json({ message: error.message });
+      }
+      console.error('Error updating group:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  }
 }

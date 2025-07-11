@@ -90,6 +90,9 @@ export class UserController {
   public getUserProfile = async (req: Request, res: Response): Promise<Response> => {
     try {
       const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID.' });
+      }
       const user = await this.userRepository.findById(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found.' });
